@@ -68,22 +68,26 @@ var g_threeElemTreeList []*Tree23 = []*Tree23{nil, nil, nil}
 
 // New creates a new tree that has no children and is not a leaf node!
 // An empty tree from New can be used as base for inserting/deleting/searching.
+// Runs in O(1)
 func New() *Tree23 {
 	return &Tree23{make([]TreeNode, 0), nil, nil, nil}
 }
 
 // IsLeaf returns true, if the given tree is a leaf node.
+// Runs in O(1)
 func (t *Tree23) IsLeaf() bool {
 	return len(t.children) == 0
 }
 
 // IsEmpty returns true, if the given tree is empty (has no nodes)
+// Runs in O(1)
 func (t *Tree23) IsEmpty() bool {
 	return t.IsLeaf() && t.elem == nil
 }
 
 // GetValue returns the value from a tree node.
 // GetValue only works for leafs, as there is no data stored in other tree nodes!
+// Runs in O(1)
 func (t *Tree23) GetValue() (TreeElement, error) {
 	if t.IsLeaf() {
 		return t.elem, nil
@@ -252,6 +256,7 @@ func (t *Tree23) insertRec(elem TreeElement) []*Tree23 {
 // Insert inserts a given element into the tree.
 // Returns a new instance of the tree!
 // The root node may change, so reassign the tree to the output of this function!
+// Runs in O(log(n))
 func (t *Tree23) Insert(elem TreeElement) *Tree23 {
 
 	// This can only happen on an empty tree.
@@ -430,6 +435,7 @@ func (t *Tree23) deleteRec(elem TreeElement) []*Tree23 {
 // Delete removes an element in the tree, if it exists.
 // Returns a new instance of the tree!
 // The root node may change, so reassign the tree to the output of this function!
+// Runs in O(log(n))
 func (t *Tree23) Delete(elem TreeElement) *Tree23 {
 	if t.IsEmpty() || t.IsLeaf() && elem.Equal(t.elem) {
 		return &Tree23{make([]TreeNode, 0), nil, nil, nil}
@@ -461,6 +467,9 @@ func (t *Tree23) findRec(elem TreeElement) (*Tree23, error) {
 	return t.children[subTree].child.findRec(elem)
 }
 
+// Find tries to find the leaf node with the given element in t.
+// If found, it will return the leaf node. Otherwise generated an error accordingly.
+// Runs in O(log(n))
 func (t *Tree23) Find(elem TreeElement) (*Tree23, error) {
 	if t.IsEmpty() {
 		return nil, errors.New("Tree is empty. No elements can be found.")
@@ -487,6 +496,7 @@ func (t *Tree23) findFirstLargerLeafRec(v float64) (*Tree23, error) {
 
 // FindFirstLargerLeaf returns the smallest leaf with a value bigger than v!
 // If there is no such element, an error is returned ()
+// Runs in O(log(n))
 func (t *Tree23) FindFirstLargerLeaf(v float64) (*Tree23, error) {
 	if t.IsEmpty() {
 		return nil, errors.New("Tree is empty. No elements can be found.")
@@ -498,6 +508,7 @@ func (t *Tree23) FindFirstLargerLeaf(v float64) (*Tree23, error) {
 // Next returns the next leaf node that is bigger than itself.
 // For the biggest/last node in the tree, Next will return the smallest/first node!
 // Previous only works for leaf nodes and will generate an error otherwise.
+// Runs in O(1)
 func (t *Tree23) Previous() (*Tree23, error) {
 	if t.IsEmpty() {
 		return nil, errors.New("Previous() does not work for empty trees")
@@ -511,6 +522,7 @@ func (t *Tree23) Previous() (*Tree23, error) {
 // Next returns the next leaf node that is bigger than itself.
 // For the biggest/last node in the tree, Next will return the smallest/first node!
 // Next only works for leaf nodes and will generated an error otherwise.
+// Runs in O(1)
 func (t *Tree23) Next() (*Tree23, error) {
 	if t.IsEmpty() {
 		return nil, errors.New("Next() does not work for empty trees")
@@ -545,6 +557,7 @@ func (t *Tree23) minmaxDepth() (int, int) {
 
 // Depths returns the minimum and maximum depth of the tree t.
 // minimum and maximum should always be the same ()
+// Runs in O(log(n))
 func (t *Tree23) Depths() (int, int) {
 	return t.minmaxDepth()
 }
@@ -558,6 +571,7 @@ func (t *Tree23) getSmallestLeafRec() (*Tree23, error) {
 
 // GetSmallestLeaf returns the leaf node of the smallest element in t
 // or sets an error if the tree is empty.
+// Runs in O(log(n))
 func (t *Tree23) GetSmallestLeaf() (*Tree23, error) {
 	if t.IsEmpty() {
 		return nil, errors.New("No leaf for an empty tree")
@@ -567,6 +581,7 @@ func (t *Tree23) GetSmallestLeaf() (*Tree23, error) {
 
 // GetLargestLeaf returns the leaf node of the largest element in t
 // or sets an error if the tree is empty.
+// Runs in O(log(n))
 func (t *Tree23) GetLargestLeaf() (*Tree23, error) {
 	l, err := t.GetSmallestLeaf()
 	if err != nil {
@@ -607,6 +622,7 @@ func (t *Tree23) leafListInvariant() bool {
 // Two things are checked: If the minimum and maximum depth is equal for every node up to the root.
 // Further, the linked list for the leaf nodes is checked for valid increasing order and linking
 // Including the link from the last to the first element.
+// Runs in O(n)
 func (t *Tree23) Invariant() bool {
 	depthMin, depthMax := t.Depths()
 
@@ -659,6 +675,7 @@ func (s TreeList) String() string {
 }
 
 // Pprint pretty prints the tree so it can be visually validated or understood.
+// Runs in O(n log(n))
 func (t *Tree23) Pprint() {
 	t.pprint(0)
 	fmt.Printf("\n")
