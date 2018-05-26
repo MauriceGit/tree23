@@ -13,7 +13,7 @@ Further, the tree allows accessing elements close to a given value (without know
 
 ## Documentation:
 
-For detailed functionality and API, please have a look at godoc.
+For detailed functionality and API, please have a look at the generated Go Docs: [https://godoc.org/github.com/MauriceGit/tree23](https://godoc.org/github.com/MauriceGit/tree23).
 
 A fully functional example of creating a tree, inserting/deleting/searching:
 
