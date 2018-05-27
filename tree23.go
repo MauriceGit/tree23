@@ -100,11 +100,22 @@ func (t *Tree23) GetValue() (TreeElement, error) {
 // Be very careful, to never edit properties, that may change the position in the tree!
 // If the outcome of .ExtractValue() changes, the whole tree may become invalid beyond repair!
 // Runs in O(1)
-func (t *Tree23) GetValueEditable() (*TreeElement, error) {
+//func (t *Tree23) GetValueEditable() (*TreeElement, error) {
+//    if t.IsLeaf() {
+//        return &t.elem, nil
+//    }
+//    return nil, errors.New("No value available for non-leaf nodes")
+//}
+
+// ChangeValue edits the value of a leaf node on the fly.
+// ChangeValue only works for leafs, as there is no data stored in other tree nodes!
+// Be very careful, to never edit properties, that may change the position in the tree!
+// If the outcome of .ExtractValue() changes, the whole tree may become invalid beyond repair!
+// Runs in O(1)
+func (t *Tree23) ChangeValue(e TreeElement) {
     if t.IsLeaf() {
-        return &t.elem, nil
+        t.elem = e
     }
-    return nil, errors.New("No value available for non-leaf nodes")
 }
 
 // Keeps a sorted tree sorted.
