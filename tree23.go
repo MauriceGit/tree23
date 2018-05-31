@@ -262,7 +262,7 @@ func (t *Tree23) insertRec(elem TreeElement) []*Tree23 {
     // So we have to insert both newChildren at position subTree and should have a fully ordered tree!
     switch subTree {
     case 0:
-        return []*Tree23{distributeTwoChildren(newChildren[0], newChildren[0]),
+        return []*Tree23{distributeTwoChildren(newChildren[0], newChildren[1]),
             distributeTwoChildren(t.children[1].child, t.children[2].child)}
     case 1:
         return []*Tree23{distributeTwoChildren(t.children[0].child, newChildren[0]),
@@ -341,7 +341,7 @@ func (t *Tree23) Insert(elem TreeElement) *Tree23 {
     // We have 3 original children (one of which is at [subTree] and get another two newChildren
     switch subTree {
     case 0:
-        return distributeFourChildren(newChildren[0], newChildren[0], t.children[1].child, t.children[2].child)
+        return distributeFourChildren(newChildren[0], newChildren[1], t.children[1].child, t.children[2].child)
     case 1:
         return distributeFourChildren(t.children[0].child, newChildren[0], newChildren[1], t.children[2].child)
     case 2:
@@ -668,7 +668,7 @@ func (t *Tree23) pprint(indentation int) {
             fmt.Printf("|  ")
         }
         fmt.Printf("|")
-        fmt.Printf("--(prev: %.0f. value: %.0f. next: %.0f)\n", t.prev.elem.ExtractValue(), t.elem.ExtractValue(), t.next.elem.ExtractValue())
+        fmt.Printf("--(prev: %.2f. value: %.2f. next: %.2f)\n", t.prev.elem.ExtractValue(), t.elem.ExtractValue(), t.next.elem.ExtractValue())
         return
     }
 
