@@ -65,6 +65,23 @@ type TreeList []*Tree23
 var g_oneElemTreeList []*Tree23 = []*Tree23{nil}
 var g_twoElemTreeList []*Tree23 = []*Tree23{nil, nil}
 var g_threeElemTreeList []*Tree23 = []*Tree23{nil, nil, nil}
+var g_allNodes []*Tree23 = []*Tree23{nil, nil, nil, nil, nil, nil, nil, nil, nil}
+
+var g_twoElemNodes []Tree23 = make([]Tree23, 100000, 100000)
+var g_twoElemNodesFirstFreePos int = 0
+var g_threeElemNodes []Tree23 = make([]Tree23, 100000, 100000)
+var g_threeElemNodesFirstFreePos int = 0
+
+// Initialize global slices for node caching.
+// Init will always be run before the project's main function.
+func init() {
+    for i:=0; i<len(g_twoElemNodes); i++ {
+        g_twoElemNodes[i] = Tree23{make([]TreeNode,2,2), nil, nil, nil}
+    }
+    for i:=0; i<len(g_threeElemNodes); i++ {
+        g_threeElemNodes[i] = Tree23{make([]TreeNode,3,3), nil, nil, nil}
+    }
+}
 
 // New creates a new tree that has no children and is not a leaf node!
 // An empty tree from New can be used as base for inserting/deleting/searching.
@@ -131,10 +148,34 @@ func (t *Tree23) max() float64 {
     return t.children[len(t.children)-1].maxChild
 }
 
+// Returns a new node from cache or allocates more memory!
+func newNode(childCount int) *Tree23 {
+    switch childCount {
+        case 2:
+            if g_twoElemNodesFirstFreePos >= len(g_twoElemNodes) {
+                return &Tree23{make([]TreeNode, 2), nil, nil, nil}
+            }
+            g_twoElemNodesFirstFreePos++
+            return &g_twoElemNodes[g_twoElemNodesFirstFreePos-1]
+        case 3:
+            if g_threeElemNodesFirstFreePos >= len(g_threeElemNodes) {
+                return &Tree23{make([]TreeNode, 3), nil, nil, nil}
+            }
+            g_threeElemNodesFirstFreePos++
+            return &g_threeElemNodes[g_threeElemNodesFirstFreePos-1]
+    }
+    return nil
+}
+
 // Creates a node from the list of children.
 // The list can have a maximum of three children!
 func nodeFromChildrenList(children *[]*Tree23, startIndex, endIndex int) *Tree23 {
-    t := &Tree23{make([]TreeNode, endIndex-startIndex), nil, nil, nil}
+
+
+
+
+    //t := &Tree23{make([]TreeNode, endIndex-startIndex), nil, nil, nil}
+    t := newNode(endIndex-startIndex)
 
     index := 0
     for i := startIndex; i < endIndex; i++ {
@@ -146,25 +187,27 @@ func nodeFromChildrenList(children *[]*Tree23, startIndex, endIndex int) *Tree23
 }
 
 // Returns between one and three nodes depending on the number of given children.
-func multipleNodesFromChildrenList(children []*Tree23) []*Tree23 {
+func multipleNodesFromChildrenList(children *[]*Tree23, cLen int) *[]*Tree23 {
 
-    cLen := len(children)
+    //cLen := len(*children)
     switch {
     case cLen <= 3:
-        g_oneElemTreeList[0] = nodeFromChildrenList(&children, 0, cLen)
-        return g_oneElemTreeList
+        g_oneElemTreeList[0] = nodeFromChildrenList(children, 0, cLen)
+        return &g_oneElemTreeList
     case cLen <= 6:
-        g_twoElemTreeList[0] = nodeFromChildrenList(&children, 0, cLen/2)
-        g_twoElemTreeList[1] = nodeFromChildrenList(&children, cLen/2, cLen)
-        return g_twoElemTreeList
+        g_twoElemTreeList[0] = nodeFromChildrenList(children, 0, cLen/2)
+        g_twoElemTreeList[1] = nodeFromChildrenList(children, cLen/2, cLen)
+        return &g_twoElemTreeList
     case cLen <= 9:
-        g_threeElemTreeList[0] = nodeFromChildrenList(&children, 0, cLen/3)
-        g_threeElemTreeList[1] = nodeFromChildrenList(&children, cLen/3, 2*cLen/3)
-        g_threeElemTreeList[2] = nodeFromChildrenList(&children, 2*cLen/3, cLen)
-        return g_threeElemTreeList
+        g_threeElemTreeList[0] = nodeFromChildrenList(children, 0, cLen/3)
+        g_threeElemTreeList[1] = nodeFromChildrenList(children, cLen/3, 2*cLen/3)
+        g_threeElemTreeList[2] = nodeFromChildrenList(children, 2*cLen/3, cLen)
+        return &g_threeElemTreeList
     }
     // Should never get here!
-    return []*Tree23{}
+    fmt.Println("SHOULD NOT GET HERE")
+
+    return &[]*Tree23{}
 }
 
 // Returns the first position bigger than the element itself or the last child to insert into!
@@ -366,37 +409,45 @@ func (t *Tree23) deleteFrom(v float64) int {
 
 // Recursive function to delete elem in t.
 // Returns a list of trees on one level.
-func (t *Tree23) deleteRec(elem TreeElement) []*Tree23 {
+func (t *Tree23) deleteRec(elem TreeElement) *[]*Tree23 {
     allLeaves := true
 
     leafCount := 0
+    foundLeaf := false
     for _, c := range t.children {
         IsLeaf := c.child.IsLeaf()
         allLeaves = allLeaves && IsLeaf
-        if IsLeaf && !elem.Equal(c.child.elem) {
+        if IsLeaf && (foundLeaf || !elem.Equal(c.child.elem)) {
             leafCount++
+        } else {
+            // We only want to delete one node, that is equal to elem!
+            // In case we successfully inserted multiple equal elements into our tree, we don't want to
+            // remove all of them (tree can only handle -1 element at a time).
+            foundLeaf = true
         }
     }
     if allLeaves {
-        var newChildren []*Tree23
+        var newChildren *[]*Tree23
 
         // We cache the memory for this list!
         switch leafCount {
         case 1:
-            newChildren = g_oneElemTreeList
+            newChildren = &g_oneElemTreeList
         case 2:
-            newChildren = g_twoElemTreeList
+            newChildren = &g_twoElemTreeList
         case 3:
-            newChildren = g_threeElemTreeList
+            newChildren = &g_threeElemTreeList
         }
 
         index := 0
+        foundLeaf = false
         for _, c := range t.children {
             // Remove the child that contains our element!
-            if !elem.Equal(c.child.elem) {
-                newChildren[index] = c.child
+            if foundLeaf || !elem.Equal(c.child.elem) {
+                (*newChildren)[index] = c.child
                 index++
             } else {
+                foundLeaf = true
                 c.child.prev.next = c.child.next
                 c.child.next.prev = c.child.prev
             }
@@ -408,18 +459,17 @@ func (t *Tree23) deleteRec(elem TreeElement) []*Tree23 {
     // In case we don't find an element to delete, we just return our own children.
     // Let's get things sorted out some other recursion level.
     if deleteFrom == -1 {
-        var children []*Tree23
         switch leafCount {
         case 2:
-            children = g_twoElemTreeList
+            g_twoElemTreeList[0] = t.children[0].child
+            g_twoElemTreeList[1] = t.children[1].child
+            return &g_twoElemTreeList
         case 3:
-            children = g_threeElemTreeList
+            g_threeElemTreeList[0] = t.children[0].child
+            g_threeElemTreeList[1] = t.children[1].child
+            g_threeElemTreeList[2] = t.children[2].child
+            return &g_threeElemTreeList
         }
-
-        for i, c := range t.children {
-            children[i] = c.child
-        }
-        return children
     }
 
     // The new children from the subtree that does not contain elem any more!
@@ -434,25 +484,25 @@ func (t *Tree23) deleteRec(elem TreeElement) []*Tree23 {
     }
 
     // Includes all grandchildren and the new nodes from the recursion!
-    allNodes := make([]*Tree23, oGCCount+len(children))
+    //allNodes := make([]*Tree23, oGCCount+len(*children))
     index := 0
 
     for i, c := range t.children {
         if i != deleteFrom {
             for _, c2 := range c.child.children {
-                allNodes[index] = c2.child
+                g_allNodes[index] = c2.child
                 index++
             }
         } else {
             // Here we insert the children from the recursion. They are now in sorted order with the rest!
-            for _, c2 := range children {
-                allNodes[index] = c2
+            for _, c2 := range *children {
+                g_allNodes[index] = c2
                 index++
             }
         }
     }
 
-    return multipleNodesFromChildrenList(allNodes)
+    return multipleNodesFromChildrenList(&g_allNodes, oGCCount+len(*children))
 }
 
 // Delete removes an element in the tree, if it exists.
@@ -466,11 +516,11 @@ func (t *Tree23) Delete(elem TreeElement) *Tree23 {
 
     children := t.deleteRec(elem)
 
-    if len(children) == 1 {
-        return children[0]
+    if len(*children) == 1 {
+        return (*children)[0]
     }
 
-    return nodeFromChildrenList(&children, 0, len(children))
+    return nodeFromChildrenList(children, 0, len(*children))
 }
 
 func (t *Tree23) findRec(elem TreeElement) (*Tree23, error) {
@@ -668,7 +718,7 @@ func (t *Tree23) pprint(indentation int) {
             fmt.Printf("|  ")
         }
         fmt.Printf("|")
-        fmt.Printf("--(prev: %.2f. value: %.2f. next: %.2f)\n", t.prev.elem.ExtractValue(), t.elem.ExtractValue(), t.next.elem.ExtractValue())
+        fmt.Printf("--(prev: %.2f. value: %.10f. next: %.2f)\n", t.prev.elem.ExtractValue(), t.elem.ExtractValue(), t.next.elem.ExtractValue())
         return
     }
 
