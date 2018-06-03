@@ -161,7 +161,7 @@ func (tree *Tree23) GetValue(t TreeNodeIndex) TreeElement {
 // If the outcome of .ExtractValue() changes, the whole tree may become invalid beyond repair!
 // Runs in O(1)
 func (tree *Tree23) ChangeValue(t TreeNodeIndex, e TreeElement) {
-    if tree.IsLeaf(t) {
+    if tree.IsLeaf(t) && tree.g_treeNodes[t].elem.Equal(e) {
         tree.g_treeNodes[t].elem = e
     }
 }
@@ -171,11 +171,8 @@ func (tree *Tree23) newNode() TreeNodeIndex {
 
     // Recycle a deleted node.
     if tree.g_treeNodesFreePositions.len() > 0 {
-        return TreeNodeIndex(tree.g_treeNodesFreePositions.pop())
-
-        //e := tree.g_treeNodesFreePositions.Front()
-        //tree.g_treeNodesFreePositions.Remove(e)
-        //return e.Value.(TreeNodeIndex)
+        node := TreeNodeIndex(tree.g_treeNodesFreePositions.pop())
+        return node
     }
 
     // Resize the cache and get more memory.
@@ -187,6 +184,8 @@ func (tree *Tree23) newNode() TreeNodeIndex {
             appendSize = l*2
         }
         tree.g_treeNodes = append(tree.g_treeNodes, make([]treeNode, appendSize)...)
+
+        fmt.Println("Memory resizing!")
     }
 
     // Get node from cached memory.
@@ -196,6 +195,8 @@ func (tree *Tree23) newNode() TreeNodeIndex {
 
 // recycleNode adds the node into the stack for recycling. It will be reused when needed.
 func (tree *Tree23) recycleNode(n TreeNodeIndex) {
+
+    //fmt.Println("recycling:", n)
 
     tree.g_treeNodes[n].cCount = 0
     tree.g_treeNodes[n].elem = nil
@@ -223,7 +224,8 @@ func (tree *Tree23) max(t TreeNodeIndex) float64 {
     if tree.IsLeaf(t) {
         return tree.g_treeNodes[t].elem.ExtractValue()
     }
-    return tree.g_treeNodes[t].children[tree.g_treeNodes[t].cCount-1].maxChild
+    c := tree.g_treeNodes[t].cCount-1
+    return tree.g_treeNodes[t].children[c].maxChild
 }
 
 // nodeFromChildrenList creates a node from the list of children.
@@ -301,7 +303,7 @@ func (tree *Tree23) distributeFourChildren(c1, c2, c3, c4 TreeNodeIndex) TreeNod
 }
 
 // insertRec handles ecursive insertion. Returns a list of trees that are all on one level.
-func (tree *Tree23) insertRec(t TreeNodeIndex, elem TreeElement) []TreeNodeIndex {
+func (tree *Tree23) insertRec(t TreeNodeIndex, elem TreeElement) *[]TreeNodeIndex {
 
     if tree.IsLeaf(t) {
 
@@ -312,8 +314,6 @@ func (tree *Tree23) insertRec(t TreeNodeIndex, elem TreeElement) []TreeNodeIndex
 
             tree.g_twoElemTreeList[0] = t
             tree.g_twoElemTreeList[1] = leaf
-            return tree.g_twoElemTreeList
-
         } else {
             leaf := tree.newLeaf(elem, tree.g_treeNodes[t].prev, t)
             tree.g_treeNodes[t].prev = leaf
@@ -321,8 +321,8 @@ func (tree *Tree23) insertRec(t TreeNodeIndex, elem TreeElement) []TreeNodeIndex
 
             tree.g_twoElemTreeList[0] = leaf
             tree.g_twoElemTreeList[1] = t
-            return tree.g_twoElemTreeList
         }
+        return &tree.g_twoElemTreeList
 
     }
     subTree := tree.insertInto(t, elem)
@@ -332,12 +332,14 @@ func (tree *Tree23) insertRec(t TreeNodeIndex, elem TreeElement) []TreeNodeIndex
 
     // If we only get one child back, there is no re-ordering
     // necessary and the child can just be overwritten with the updated one.
-    if len(newChildren) == 1 {
+    if len(*newChildren) == 1 {
 
-        tree.g_treeNodes[t].children[subTree].maxChild = tree.max(newChildren[0])
-        tree.g_treeNodes[t].children[subTree].child = newChildren[0]
+        tree.g_treeNodes[t].children[subTree].maxChild = tree.max((*newChildren)[0])
+        tree.g_treeNodes[t].children[subTree].child = (*newChildren)[0]
 
-        return []TreeNodeIndex{t}
+        tree.g_oneElemTreeList[0] = t
+
+        return &tree.g_oneElemTreeList
     }
 
     // Two children and two in our current tree. One of which is the updated
@@ -347,42 +349,47 @@ func (tree *Tree23) insertRec(t TreeNodeIndex, elem TreeElement) []TreeNodeIndex
     // we should replace the child at [subTree] and insert the second newChild directly afterwards.
     if tree.g_treeNodes[t].cCount == 2 {
 
-        tree.g_treeNodes[t].children[subTree].maxChild = tree.max(newChildren[0])
-        tree.g_treeNodes[t].children[subTree].child = newChildren[0]
+        tree.g_treeNodes[t].children[subTree].maxChild = tree.max((*newChildren)[0])
+        tree.g_treeNodes[t].children[subTree].child = (*newChildren)[0]
 
         // We should move our second new child to index 1
         if subTree == 0 {
             tmpTreeNode := tree.g_treeNodes[t].children[1]
-            tree.g_treeNodes[t].children[1] = treeLink{tree.max(newChildren[1]), newChildren[1]}
+            tree.g_treeNodes[t].children[1] = treeLink{tree.max((*newChildren)[1]), (*newChildren)[1]}
             tree.g_treeNodes[t].children[2] = tmpTreeNode
         } else {
             // We inserted into the second/last position and can just append our second new child.
-            tree.g_treeNodes[t].children[2] = treeLink{tree.max(newChildren[1]), newChildren[1]}
+            tree.g_treeNodes[t].children[2] = treeLink{tree.max((*newChildren)[1]), (*newChildren)[1]}
         }
         tree.g_treeNodes[t].cCount = 3
 
-        return []TreeNodeIndex{t}
+
+        tree.g_oneElemTreeList[0] = t
+
+        return &tree.g_oneElemTreeList
     }
 
     defer tree.recycleNode(t)
+
+    tmpChild0 := (*newChildren)[0]
+    tmpChild1 := (*newChildren)[1]
 
     // We now have 3 original children (included [subTree]) and 2 new children from the recursion.
     // Both lists are separately sorted. And newChildren should fit perfectly into [subTree].
     // So we have to insert both newChildren at position subTree and should have a fully ordered tree!
     switch subTree {
     case 0:
-        return []TreeNodeIndex{tree.distributeTwoChildren(newChildren[0], newChildren[1]),
-            tree.distributeTwoChildren(tree.g_treeNodes[t].children[1].child, tree.g_treeNodes[t].children[2].child)}
+        tree.g_twoElemTreeList[0] = tree.distributeTwoChildren(tmpChild0, tmpChild1)
+        tree.g_twoElemTreeList[1] = tree.distributeTwoChildren(tree.g_treeNodes[t].children[1].child, tree.g_treeNodes[t].children[2].child)
     case 1:
-        return []TreeNodeIndex{tree.distributeTwoChildren(tree.g_treeNodes[t].children[0].child, newChildren[0]),
-            tree.distributeTwoChildren(newChildren[1], tree.g_treeNodes[t].children[2].child)}
+        tree.g_twoElemTreeList[0] = tree.distributeTwoChildren(tree.g_treeNodes[t].children[0].child, tmpChild0)
+        tree.g_twoElemTreeList[1] = tree.distributeTwoChildren(tmpChild1, tree.g_treeNodes[t].children[2].child)
     case 2:
-        return []TreeNodeIndex{tree.distributeTwoChildren(tree.g_treeNodes[t].children[0].child, tree.g_treeNodes[t].children[1].child),
-            tree.distributeTwoChildren(newChildren[0], newChildren[1])}
+        tree.g_twoElemTreeList[0] = tree.distributeTwoChildren(tree.g_treeNodes[t].children[0].child, tree.g_treeNodes[t].children[1].child)
+        tree.g_twoElemTreeList[1] = tree.distributeTwoChildren(tmpChild0, tmpChild1)
     }
 
-    // We should never get here!
-    return nil
+    return &tree.g_twoElemTreeList
 }
 
 // Insert inserts a given element into the tree.
@@ -401,7 +408,6 @@ func (tree *Tree23) Insert(elem TreeElement) {
 
     // This can only happen on a tree with just one leaf.
     if tree.IsLeaf(tree.root) {
-
         l := tree.newLeaf(elem, -1, -1)
 
         if tree.g_treeNodes[l].elem.ExtractValue() < tree.g_treeNodes[tree.root].elem.ExtractValue() {
@@ -423,46 +429,49 @@ func (tree *Tree23) Insert(elem TreeElement) {
     subTree := tree.insertInto(tree.root, elem)
     newChildren := tree.insertRec(tree.g_treeNodes[tree.root].children[subTree].child, elem)
 
+    //fmt.Println(*newChildren)
+
     // Returns a sorted tree (Rightfully replaces the node pointer)!
-    if len(newChildren) == 1 {
-        tree.g_treeNodes[tree.root].children[subTree].maxChild = tree.max(newChildren[0])
-        tree.g_treeNodes[tree.root].children[subTree].child = newChildren[0]
+    if len(*newChildren) == 1 {
+        tree.g_treeNodes[tree.root].children[subTree].maxChild = tree.max((*newChildren)[0])
+        tree.g_treeNodes[tree.root].children[subTree].child = (*newChildren)[0]
         return
     }
 
     // We get two new children and have one old (subTree is overwritten!)
     if tree.g_treeNodes[tree.root].cCount == 2 {
-
         // Overwrite old child
-        tree.g_treeNodes[tree.root].children[subTree].maxChild = tree.max(newChildren[0])
-        tree.g_treeNodes[tree.root].children[subTree].child = newChildren[0]
+        tree.g_treeNodes[tree.root].children[subTree].maxChild = tree.max((*newChildren)[0])
+        tree.g_treeNodes[tree.root].children[subTree].child = (*newChildren)[0]
         tree.g_treeNodes[tree.root].cCount = 3
 
         if subTree == 0 {
             tmpChild := tree.g_treeNodes[tree.root].children[1]
-            tree.g_treeNodes[tree.root].children[1].maxChild = tree.max(newChildren[1])
-            tree.g_treeNodes[tree.root].children[1].child = newChildren[1]
+            tree.g_treeNodes[tree.root].children[1].maxChild = tree.max((*newChildren)[1])
+            tree.g_treeNodes[tree.root].children[1].child = (*newChildren)[1]
             tree.g_treeNodes[tree.root].children[2].maxChild = tree.max(tmpChild.child)
             tree.g_treeNodes[tree.root].children[2].child = tmpChild.child
         } else {
-            tree.g_treeNodes[tree.root].children[2].maxChild = tree.max(newChildren[1])
-            tree.g_treeNodes[tree.root].children[2].child = newChildren[1]
+            tree.g_treeNodes[tree.root].children[2].maxChild = tree.max((*newChildren)[1])
+            tree.g_treeNodes[tree.root].children[2].child = (*newChildren)[1]
         }
 
         return
     }
 
-    defer tree.recycleNode(tree.root)
+    oldRoot := tree.root
+    defer tree.recycleNode(oldRoot)
 
     // We have 3 original children (one of which is at [subTree] and get another two newChildren
     switch subTree {
     case 0:
-        tree.root = tree.distributeFourChildren(newChildren[0], newChildren[1], tree.g_treeNodes[tree.root].children[1].child, tree.g_treeNodes[tree.root].children[2].child)
+        tree.root = tree.distributeFourChildren((*newChildren)[0], (*newChildren)[1], tree.g_treeNodes[tree.root].children[1].child, tree.g_treeNodes[tree.root].children[2].child)
     case 1:
-        tree.root = tree.distributeFourChildren(tree.g_treeNodes[tree.root].children[0].child, newChildren[0], newChildren[1], tree.g_treeNodes[tree.root].children[2].child)
+        tree.root = tree.distributeFourChildren(tree.g_treeNodes[tree.root].children[0].child, (*newChildren)[0], (*newChildren)[1], tree.g_treeNodes[tree.root].children[2].child)
     case 2:
-        tree.root = tree.distributeFourChildren(tree.g_treeNodes[tree.root].children[0].child, tree.g_treeNodes[tree.root].children[1].child, newChildren[0], newChildren[1])
+        tree.root = tree.distributeFourChildren(tree.g_treeNodes[tree.root].children[0].child, tree.g_treeNodes[tree.root].children[1].child, (*newChildren)[0], (*newChildren)[1])
     }
+
 
 }
 
@@ -511,6 +520,8 @@ func (tree *Tree23) deleteRec(t TreeNodeIndex, elem TreeElement) *[]TreeNodeInde
             newChildren = &tree.g_threeElemTreeList
         }
 
+
+
         index := 0
         foundLeaf = false
         for i := 0; i < tree.g_treeNodes[t].cCount; i++ {
@@ -525,8 +536,10 @@ func (tree *Tree23) deleteRec(t TreeNodeIndex, elem TreeElement) *[]TreeNodeInde
                 tree.g_treeNodes[tree.g_treeNodes[c.child].next].prev = tree.g_treeNodes[c.child].prev
 
                 tree.recycleNode(c.child)
+
             }
         }
+
         return newChildren
     }
 
@@ -536,7 +549,7 @@ func (tree *Tree23) deleteRec(t TreeNodeIndex, elem TreeElement) *[]TreeNodeInde
     // No node recycling possible here.
     if deleteFrom == -1 {
 
-        defer tree.recycleNode(t)
+        //defer tree.recycleNode(t)
 
         switch leafCount {
         case 2:
@@ -574,17 +587,22 @@ func (tree *Tree23) deleteRec(t TreeNodeIndex, elem TreeElement) *[]TreeNodeInde
                 tree.g_nineElemTreeList[index] = c2.child
                 index++
             }
+            //tree.recycleNode(c.child)
         } else {
             // Here we insert the children from the recursion. They are now in sorted order with the rest!
             for _, c2 := range *children {
                 tree.g_nineElemTreeList[index] = c2
                 index++
             }
+
         }
+        //fmt.Println("soon to be recycled:", c.child)
         tree.recycleNode(c.child)
     }
 
-    defer tree.recycleNode(t)
+    //tree.recycleNode(tree.g_treeNodes[t].children[deleteFrom].child)
+
+    //defer tree.recycleNode(t)
 
     return tree.multipleNodesFromChildrenList(&tree.g_nineElemTreeList, oGCCount+len(*children))
 }
@@ -606,12 +624,12 @@ func (tree *Tree23) Delete(elem TreeElement) {
 
     children := tree.deleteRec(tree.root, elem)
 
-    defer tree.recycleNode(tree.root)
-
     if len(*children) == 1 {
         tree.root = (*children)[0]
         return
     }
+
+    tree.recycleNode(tree.root)
 
     tree.root = tree.nodeFromChildrenList(children, 0, len(*children))
 }
@@ -820,8 +838,9 @@ func (tree *Tree23) pprint(t TreeNodeIndex, indentation int) {
             fmt.Printf("|  ")
         }
         fmt.Printf("|")
-        fmt.Printf("--(prev: %.2f. value: %.10f. next: %.2f)\n",
+        fmt.Printf("--(prev: %.2f. value: %d(%.10f). next: %.2f)\n",
                 tree.g_treeNodes[tree.g_treeNodes[t].prev].elem.ExtractValue(),
+                t,
                 tree.g_treeNodes[t].elem.ExtractValue(),
                 tree.g_treeNodes[tree.g_treeNodes[t].next].elem.ExtractValue())
         return
