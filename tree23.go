@@ -26,6 +26,7 @@
 // for floating point keys and by having a native function to retreive the next or previous leaf element
 // in the tree without knowing its key or position in the tree that work in O(1) for every leaf!
 // The last element links to the first and the first back to the last element.
+// The tree has its own memory manager to avoid frequent allocations for single nodes that are created or removed.
 package tree23
 
 import (
@@ -121,15 +122,12 @@ func New() *Tree23 {
 // IsLeaf returns true, if the given tree is a leaf node.
 // Runs in O(1)
 func (tree *Tree23) IsLeaf(t TreeNodeIndex) bool {
-    //fmt.Printf("isLeaf: %d\n", t)
     return tree.g_treeNodes[t].cCount == 0
-    //return len(t.children) == 0
 }
 
 // IsEmpty returns true, if the given tree is empty (has no nodes)
 // Runs in O(1)
 func (tree *Tree23) IsEmpty(t TreeNodeIndex) bool {
-    //fmt.Printf("isEmpty: %d\n", t)
     return tree.IsLeaf(t) && tree.g_treeNodes[t].elem == nil
 }
 
@@ -138,24 +136,8 @@ func (tree *Tree23) IsEmpty(t TreeNodeIndex) bool {
 // Please take care to only call GetValue on leaf nodes.
 // Runs in O(1)
 func (tree *Tree23) GetValue(t TreeNodeIndex) TreeElement {
-    //if t.IsLeaf() {
     return tree.g_treeNodes[t].elem
-    //}
-    //return nil
-    //return nil, errors.New("No value available for non-leaf nodes")
 }
-
-// GetValueEditable returns the pointer to a value from a tree node.
-// GetValueEditable only works for leafs, as there is no data stored in other tree nodes!
-// Be very careful, to never edit properties, that may change the position in the tree!
-// If the outcome of .ExtractValue() changes, the whole tree may become invalid beyond repair!
-// Runs in O(1)
-//func (t *treeNode) GetValueEditable() (*TreeElement, error) {
-//    if t.IsLeaf() {
-//        return &t.elem, nil
-//    }
-//    return nil, errors.New("No value available for non-leaf nodes")
-//}
 
 // ChangeValue edits the value of a leaf node on the fly.
 // ChangeValue only works for leafs, as there is no data stored in other tree nodes!
@@ -168,7 +150,7 @@ func (tree *Tree23) ChangeValue(t TreeNodeIndex, e TreeElement) {
     }
 }
 
-// Returns a new node from cache or allocates more memory!
+// newNode returns a new node from cache or triggers a re-allocation for more memory!
 func (tree *Tree23) newNode() TreeNodeIndex {
 
     // Recycle a deleted node.
@@ -194,10 +176,8 @@ func (tree *Tree23) newNode() TreeNodeIndex {
     return TreeNodeIndex(tree.g_treeNodesFirstFreePos-1)
 }
 
+// recycleNode adds the node into the stack for recycling. It will be reused when needed.
 func (tree *Tree23) recycleNode(n TreeNodeIndex) {
-
-    // TODO: Later we can probably remove the data deletion. But for now I want exceptions,
-    // if someone tries to access this data!!!
 
     tree.g_treeNodes[n].cCount = 0
     tree.g_treeNodes[n].elem = nil
@@ -207,7 +187,7 @@ func (tree *Tree23) recycleNode(n TreeNodeIndex) {
     tree.g_treeNodesFreePositions.PushFront(n)
 }
 
-// Keeps a sorted tree sorted.
+// newLeaf creates a new leaf node with an element and correct pointers.
 func (tree *Tree23) newLeaf(elem TreeElement, prev, next TreeNodeIndex) TreeNodeIndex {
 
     n := tree.newNode()
@@ -220,21 +200,18 @@ func (tree *Tree23) newLeaf(elem TreeElement, prev, next TreeNodeIndex) TreeNode
     return n
 }
 
-// Returns the maximum element in the subtree.
+// max returns the maximum element of the biggest subtree.
 func (tree *Tree23) max(t TreeNodeIndex) float64 {
     if tree.IsLeaf(t) {
-        //fmt.Printf("t == %d\n", t)
-        //fmt.Printf("t: %v\n", tree.g_treeNodes[t])
         return tree.g_treeNodes[t].elem.ExtractValue()
     }
     return tree.g_treeNodes[t].children[tree.g_treeNodes[t].cCount-1].maxChild
 }
 
-// Creates a node from the list of children.
+// nodeFromChildrenList creates a node from the list of children.
 // The list can have a maximum of three children!
 func (tree *Tree23) nodeFromChildrenList(children *[]TreeNodeIndex, startIndex, endIndex int) TreeNodeIndex {
 
-    //t := &treeNode{make([]treeLink, endIndex-startIndex), nil, nil, nil}
     t := tree.newNode()
     tree.g_treeNodes[t].cCount = endIndex-startIndex
 
@@ -247,7 +224,7 @@ func (tree *Tree23) nodeFromChildrenList(children *[]TreeNodeIndex, startIndex, 
     return t
 }
 
-// Returns between one and three nodes depending on the number of given children.
+// multipleNodesFromChildrenList returns between one and three nodes depending on the number of given children.
 func (tree *Tree23) multipleNodesFromChildrenList(children *[]TreeNodeIndex, cLen int) *[]TreeNodeIndex {
 
     //cLen := len(*children)
@@ -271,11 +248,10 @@ func (tree *Tree23) multipleNodesFromChildrenList(children *[]TreeNodeIndex, cLe
     return nil
 }
 
-// Returns the first position bigger than the element itself or the last child to insert into!
+// insertInto returns the first position bigger than the element itself or the last child to insert into!
 func (tree *Tree23) insertInto(t TreeNodeIndex, elem TreeElement) int {
 
     v := elem.ExtractValue()
-    //for i, c := range tree.g_treeNodes[t].children {
     for i := 0; i < tree.g_treeNodes[t].cCount; i++ {
         // Find the tree with the smallest maximumChild bigger than elem itself!
         if v < tree.g_treeNodes[t].children[i].maxChild {
@@ -284,12 +260,10 @@ func (tree *Tree23) insertInto(t TreeNodeIndex, elem TreeElement) int {
     }
 
     return tree.g_treeNodes[t].cCount-1
-    //return len(t.children) - 1
 }
 
-// Creates a node with the two given children
+// distributeTwoChildren creates a node with the two given children
 func (tree *Tree23) distributeTwoChildren(c1, c2 TreeNodeIndex) TreeNodeIndex {
-    //child := &treeNode{make([]treeLink, 2), nil, nil, nil}
 
     n := tree.newNode()
     tree.g_treeNodes[n].cCount = 2
@@ -301,14 +275,14 @@ func (tree *Tree23) distributeTwoChildren(c1, c2 TreeNodeIndex) TreeNodeIndex {
     return n
 }
 
-// Creates a node with two sub-nodes with the four given children (two each)
+// distributeFourChildren creates a node with two sub-nodes with the four given children (two each)
 func (tree *Tree23) distributeFourChildren(c1, c2, c3, c4 TreeNodeIndex) TreeNodeIndex {
     child1 := tree.distributeTwoChildren(c1, c2)
     child2 := tree.distributeTwoChildren(c3, c4)
     return tree.distributeTwoChildren(child1, child2)
 }
 
-// Recursive insertion. Returns a list of trees on one level.
+// insertRec handles ecursive insertion. Returns a list of trees that are all on one level.
 func (tree *Tree23) insertRec(t TreeNodeIndex, elem TreeElement) []TreeNodeIndex {
 
     if tree.IsLeaf(t) {
@@ -316,7 +290,6 @@ func (tree *Tree23) insertRec(t TreeNodeIndex, elem TreeElement) []TreeNodeIndex
         if tree.g_treeNodes[t].elem.ExtractValue() < elem.ExtractValue() {
             leaf := tree.newLeaf(elem, t, tree.g_treeNodes[t].next)
             tree.g_treeNodes[t].next = leaf
-            //leaf.next.prev = leaf
             tree.g_treeNodes[tree.g_treeNodes[leaf].next].prev = leaf
 
             tree.g_twoElemTreeList[0] = t
@@ -326,7 +299,6 @@ func (tree *Tree23) insertRec(t TreeNodeIndex, elem TreeElement) []TreeNodeIndex
         } else {
             leaf := tree.newLeaf(elem, tree.g_treeNodes[t].prev, t)
             tree.g_treeNodes[t].prev = leaf
-            //leaf.prev.next = leaf
             tree.g_treeNodes[tree.g_treeNodes[leaf].prev].next = leaf
 
             tree.g_twoElemTreeList[0] = leaf
@@ -339,8 +311,6 @@ func (tree *Tree23) insertRec(t TreeNodeIndex, elem TreeElement) []TreeNodeIndex
     // Recursive call to get a list of children back for redistribution :)
     // There can only ever be 1 or 2 children from the recursion!!!
     newChildren := tree.insertRec(tree.g_treeNodes[t].children[subTree].child, elem)
-
-    //recycleNode(tree.g_treeNodes[t].children[subTree].child)
 
     // If we only get one child back, there is no re-ordering
     // necessary and the child can just be overwritten with the updated one.
@@ -367,10 +337,8 @@ func (tree *Tree23) insertRec(t TreeNodeIndex, elem TreeElement) []TreeNodeIndex
             tmpTreeNode := tree.g_treeNodes[t].children[1]
             tree.g_treeNodes[t].children[1] = treeLink{tree.max(newChildren[1]), newChildren[1]}
             tree.g_treeNodes[t].children[2] = tmpTreeNode
-            //t.children = append(t.children, tmpTreeNode)
         } else {
             // We inserted into the second/last position and can just append our second new child.
-            //t.children = append(t.children, treeLink{newChildren[1].max(), newChildren[1]})
             tree.g_treeNodes[t].children[2] = treeLink{tree.max(newChildren[1]), newChildren[1]}
         }
         tree.g_treeNodes[t].cCount = 3
@@ -400,12 +368,8 @@ func (tree *Tree23) insertRec(t TreeNodeIndex, elem TreeElement) []TreeNodeIndex
 }
 
 // Insert inserts a given element into the tree.
-// Returns a new instance of the tree!
-// The root node may change, so reassign the tree to the output of this function!
 // Runs in O(log(n))
 func (tree *Tree23) Insert(elem TreeElement) {
-
-    // TODO: tree was t before. And it was a TreeNodeIndex pointing to the root. So t == tree.root now. Change that!
 
     // This can only happen on an empty tree.
     if tree.IsEmpty(tree.root) {
@@ -427,14 +391,12 @@ func (tree *Tree23) Insert(elem TreeElement) {
             tree.g_treeNodes[tree.g_treeNodes[l].prev].next = l
             tree.g_treeNodes[l].next = tree.root
             tree.g_treeNodes[tree.root].prev = l
-            //return distributeTwoChildren(l, t)
             tree.root = tree.distributeTwoChildren(l, tree.root)
         } else {
             tree.g_treeNodes[l].prev = tree.root
             tree.g_treeNodes[l].next = tree.g_treeNodes[tree.root].next
             tree.g_treeNodes[tree.g_treeNodes[l].next].prev = l
             tree.g_treeNodes[tree.root].next = l
-            //return distributeTwoChildren(t, l)
             tree.root = tree.distributeTwoChildren(tree.root, l)
         }
         return
@@ -462,11 +424,9 @@ func (tree *Tree23) Insert(elem TreeElement) {
             tmpChild := tree.g_treeNodes[tree.root].children[1]
             tree.g_treeNodes[tree.root].children[1].maxChild = tree.max(newChildren[1])
             tree.g_treeNodes[tree.root].children[1].child = newChildren[1]
-            //t.children = append(t.children, treeLink{tmpChild.child.max(), tmpChild.child})
             tree.g_treeNodes[tree.root].children[2].maxChild = tree.max(tmpChild.child)
             tree.g_treeNodes[tree.root].children[2].child = tmpChild.child
         } else {
-            //t.children = append(t.children, treeLink{newChildren[1].max(), newChildren[1]})
             tree.g_treeNodes[tree.root].children[2].maxChild = tree.max(newChildren[1])
             tree.g_treeNodes[tree.root].children[2].child = newChildren[1]
         }
@@ -488,11 +448,10 @@ func (tree *Tree23) Insert(elem TreeElement) {
 
 }
 
-// Returns the index of the child elem must be in (if any)
+// deleteFrom returns the index of the child elem must be in (if any)
 // It must the the first child bigger than elem itself. Or none.
 // -1 is returned, if there exist no such child.
 func (tree *Tree23) deleteFrom(t TreeNodeIndex, v float64) int {
-    //for i, _ := range tree.g_treeNodes[t].children {
     for i := 0; i < tree.g_treeNodes[t].cCount; i++ {
         if v <= tree.g_treeNodes[t].children[i].maxChild {
             return i
@@ -501,14 +460,13 @@ func (tree *Tree23) deleteFrom(t TreeNodeIndex, v float64) int {
     return -1
 }
 
-// Recursive function to delete elem in t.
-// Returns a list of trees on one level.
+// deleteRec is the recursive function to delete elem in t.
+// Returns a list of trees that are all on one level.
 func (tree *Tree23) deleteRec(t TreeNodeIndex, elem TreeElement) *[]TreeNodeIndex {
     allLeaves := true
 
     leafCount := 0
     foundLeaf := false
-    //for _, c := range tree.g_treeNodes[t].children {
     for i := 0; i < tree.g_treeNodes[t].cCount; i++ {
         c := tree.g_treeNodes[t].children[i]
         isLeaf := tree.IsLeaf(c.child)
@@ -537,7 +495,6 @@ func (tree *Tree23) deleteRec(t TreeNodeIndex, elem TreeElement) *[]TreeNodeInde
 
         index := 0
         foundLeaf = false
-        //for _, c := range tree.g_treeNodes[t].children {
         for i := 0; i < tree.g_treeNodes[t].cCount; i++ {
             c := tree.g_treeNodes[t].children[i]
             // Remove the child that contains our element!
@@ -581,7 +538,6 @@ func (tree *Tree23) deleteRec(t TreeNodeIndex, elem TreeElement) *[]TreeNodeInde
 
     // Count the number of old grandChildren before allocating
     oGCCount := 0
-    //for i, c := range tree.g_treeNodes[t].children {
     for i := 0; i < tree.g_treeNodes[t].cCount; i++ {
         if i != deleteFrom {
             oGCCount += tree.g_treeNodes[tree.g_treeNodes[t].children[i].child].cCount
@@ -589,15 +545,12 @@ func (tree *Tree23) deleteRec(t TreeNodeIndex, elem TreeElement) *[]TreeNodeInde
     }
 
     // Includes all grandchildren and the new nodes from the recursion!
-    //allNodes := make([]*treeNode, oGCCount+len(*children))
     index := 0
 
-    //for i, c := range tree.g_treeNodes[t].children {
     for i := 0; i < tree.g_treeNodes[t].cCount; i++ {
         c := tree.g_treeNodes[t].children[i]
         if i != deleteFrom {
 
-            //for _, c2 := range tree.g_treeNodes[c.child].children {
             for j := 0; j < tree.g_treeNodes[c.child].cCount; j++ {
                 c2 := tree.g_treeNodes[c.child].children[j]
                 tree.g_nineElemTreeList[index] = c2.child
@@ -613,15 +566,12 @@ func (tree *Tree23) deleteRec(t TreeNodeIndex, elem TreeElement) *[]TreeNodeInde
         tree.recycleNode(c.child)
     }
 
-    //recycleNode(tree.g_treeNodes[t].children[deleteFrom].child)
     defer tree.recycleNode(t)
 
     return tree.multipleNodesFromChildrenList(&tree.g_nineElemTreeList, oGCCount+len(*children))
 }
 
-// Delete removes an element in the tree, if it exists.
-// Returns a new instance of the tree!
-// The root node may change, so reassign the tree to the output of this function!
+// Delete removes an element in the tree, if it exists. It will not throw any errors, if the element doesn't exist.
 // Runs in O(log(n))
 func (tree *Tree23) Delete(elem TreeElement) {
 
@@ -648,6 +598,8 @@ func (tree *Tree23) Delete(elem TreeElement) {
     tree.root = tree.nodeFromChildrenList(children, 0, len(*children))
 }
 
+// findRec is the recursive function for finding elem in t.
+// It returns the tree node (index) or an error if not found.
 func (tree *Tree23) findRec(t TreeNodeIndex, elem TreeElement) (TreeNodeIndex, error) {
     if tree.IsLeaf(t) {
         if elem.Equal(tree.g_treeNodes[t].elem) {
@@ -675,6 +627,7 @@ func (tree *Tree23) Find(elem TreeElement) (TreeNodeIndex, error) {
     return tree.findRec(tree.root, elem)
 }
 
+// findFirstLargerLeafRec is the recursive function for finding the smallest node bigger than value v in t.
 func (tree *Tree23) findFirstLargerLeafRec(t TreeNodeIndex, v float64) (TreeNodeIndex, error) {
     if tree.IsLeaf(t) {
         if v <= tree.g_treeNodes[t].elem.ExtractValue() {
@@ -703,8 +656,8 @@ func (tree *Tree23) FindFirstLargerLeaf(v float64) (TreeNodeIndex, error) {
     return tree.findFirstLargerLeafRec(tree.root, v)
 }
 
-// Next returns the next leaf node that is bigger than itself.
-// For the biggest/last node in the tree, Next will return the smallest/first node!
+// Previous returns the previous leaf node that is smaller or equal than itself.
+// For the smallest/first node in the tree, Previous will return the biggest/last node!
 // Previous only works for leaf nodes and will generate an error otherwise.
 // Runs in O(1)
 func (tree *Tree23) Previous(t TreeNodeIndex) (TreeNodeIndex, error) {
@@ -717,7 +670,7 @@ func (tree *Tree23) Previous(t TreeNodeIndex) (TreeNodeIndex, error) {
     return -1, errors.New("Previous() only works for leaf nodes!")
 }
 
-// Next returns the next leaf node that is bigger than itself.
+// Next returns the next leaf node that is bigger or equal than itself.
 // For the biggest/last node in the tree, Next will return the smallest/first node!
 // Next only works for leaf nodes and will generated an error otherwise.
 // Runs in O(1)
@@ -731,6 +684,7 @@ func (tree *Tree23) Next(t TreeNodeIndex) (TreeNodeIndex, error) {
     return -1, errors.New("Next() only works for leaf nodes!")
 }
 
+// minmaxDepth returns the minimum and maximum depth of all children (recursively) of t.
 func (tree *Tree23) minmaxDepth(t TreeNodeIndex) (int, int) {
     if tree.IsEmpty(t) {
         return 0, 0
@@ -761,6 +715,7 @@ func (tree *Tree23) Depths() (int, int) {
     return tree.minmaxDepth(tree.root)
 }
 
+// getSmallestLeafRec is the recursive function that returns the left-most leaf node.
 func (tree *Tree23) getSmallestLeafRec(t TreeNodeIndex) (TreeNodeIndex, error) {
     if tree.IsLeaf(t) {
         return t, nil
@@ -790,25 +745,24 @@ func (tree *Tree23) GetLargestLeaf() (TreeNodeIndex, error) {
     return tree.Previous(l)
 }
 
+// checkLinkedList is the recursive function that runs through all leaf nodes by using
+// the provided prev/next pointers and checks them on validity until it reaches the start node again.
 func (tree *Tree23) checkLinkedList(startNode, currentNode TreeNodeIndex) bool {
 
     nextNode := tree.g_treeNodes[currentNode].next
     linkCheck := tree.g_treeNodes[nextNode].prev == currentNode
 
     // Once all around.
-    //if tree.g_treeNodes[startNode].elem.Equal(nextNode.elem) {
     if startNode == nextNode {
         return linkCheck
     }
-
-    //fmt.Printf("currentNode: %v, nextNode: %v\n", tree.g_treeNodes[currentNode], tree.g_treeNodes[nextNode])
 
     increasing := tree.g_treeNodes[nextNode].elem.ExtractValue() >= tree.g_treeNodes[currentNode].elem.ExtractValue()
 
     return linkCheck && increasing && tree.checkLinkedList(startNode, nextNode)
 }
 
-// Checks, that there are no dangling pointers and all elements are sorted increasingly!
+// leafListInvariant checks, that there are no dangling pointers and all elements are sorted increasingly!
 func (tree *Tree23) leafListInvariant() bool {
 
     if tree.IsEmpty(tree.root) {
@@ -833,6 +787,7 @@ func (tree *Tree23) Invariant() bool {
     return depthMin == depthMax && linkedListCorrect
 }
 
+// pprint recursively pretty prints the tree.
 func (tree *Tree23) pprint(t TreeNodeIndex, indentation int) {
 
     if tree.IsEmpty(t) {
@@ -854,7 +809,6 @@ func (tree *Tree23) pprint(t TreeNodeIndex, indentation int) {
         return
     }
 
-    //for _, c := range t.children {
     for i := 0; i < tree.g_treeNodes[t].cCount; i++ {
         c := tree.g_treeNodes[t].children[i]
         if indentation != 0 {
@@ -873,7 +827,7 @@ func (tree *Tree23) pprint(t TreeNodeIndex, indentation int) {
 
 // Pprint pretty prints the tree so it can be visually validated or understood.
 // Runs in O(n log(n))
-func (tree *Tree23) Pprint() {
+func (tree *Tree23) PrettyPrint() {
     tree.pprint(tree.root, 0)
     fmt.Printf("\n")
 }
