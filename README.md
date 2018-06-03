@@ -38,7 +38,7 @@ func main() {
     tree := New()
 
     for i := 0; i < 100000; i++ {
-        tree = tree.Insert(Element{i})
+        tree.Insert(Element{i})
     }
 
     // e1 will be the leaf node: 14
@@ -46,16 +46,16 @@ func main() {
     // e2 will be the leaf node: 7
     e2, err := tree.Find(Element{7})
     // e3 will be the leaf node: 8
-    e3, err := e2.Next()
+    e3, err := tree.Next(e2)
     // e4 will be the leaf node: 6
-    e4, err := e2.Previous()
+    e4, err := tree.Previous(e2)
     // smallest will be the leaf node: 0
     smallest, err := tree.GetSmallestLeaf()
     // largest will be the leaf node: 99999
     largest, err  := tree.GetLargestLeaf()
 
     for i := 0; i < 100000; i++ {
-        tree = tree.Delete(Element{i})
+        tree.Delete(Element{i})
     }
 
     // tree is now empty.
