@@ -32,8 +32,8 @@ package tree23
 import (
     "errors"
     "fmt"
-    "container/list"
 )
+
 
 type TreeElement interface {
     // The tree saves the corresponding max values of all children. To
@@ -80,10 +80,26 @@ type Tree23 struct {
     // Memory caching and node reusage.
     g_treeNodes []treeNode
     g_treeNodesFirstFreePos int
-    g_treeNodesFreePositions *list.List
+    g_treeNodesFreePositions stack
 }
 
-// Some global pre-allocated lists to avoid small allocations all the time.
+// Internal stack implementation for reusing memory of recycled nodes.
+// The slice as underlaying data structure proves to be faster than the linked-list!
+type stack []TreeNodeIndex
+
+func (s stack) empty() bool { return len(s) == 0 }
+func (s stack) peek() TreeNodeIndex   { return s[len(s)-1] }
+func (s stack) len() int   { return len(s) }
+func (s *stack) push(i TreeNodeIndex)  { (*s) = append((*s), i) }
+func (s *stack) pop() TreeNodeIndex {
+  d := (*s)[len(*s)-1]
+  (*s) = (*s)[:len(*s)-1]
+  return d
+}
+
+
+// initializeTree initializes global pre-allocated lists to avoid small allocations all the time.
+// it also creates a valid root node and initializes the stack for memory recycling.
 func (tree *Tree23) initializeTree(capacity int) {
 
     tree.root = 0
@@ -99,7 +115,7 @@ func (tree *Tree23) initializeTree(capacity int) {
         tree.g_treeNodes[i] = treeNode{a, 0, nil, -1, -1}
     }
     tree.g_treeNodesFirstFreePos = 1
-    tree.g_treeNodesFreePositions = list.New()
+    tree.g_treeNodesFreePositions = make(stack, 0, 0)
 }
 
 // NewCapacity Works exactly like New without paramters, but pre-allocated memory for the
@@ -154,10 +170,12 @@ func (tree *Tree23) ChangeValue(t TreeNodeIndex, e TreeElement) {
 func (tree *Tree23) newNode() TreeNodeIndex {
 
     // Recycle a deleted node.
-    if tree.g_treeNodesFreePositions.Len() > 0 {
-        e := tree.g_treeNodesFreePositions.Front()
-        tree.g_treeNodesFreePositions.Remove(e)
-        return e.Value.(TreeNodeIndex)
+    if tree.g_treeNodesFreePositions.len() > 0 {
+        return TreeNodeIndex(tree.g_treeNodesFreePositions.pop())
+
+        //e := tree.g_treeNodesFreePositions.Front()
+        //tree.g_treeNodesFreePositions.Remove(e)
+        //return e.Value.(TreeNodeIndex)
     }
 
     // Resize the cache and get more memory.
@@ -184,7 +202,7 @@ func (tree *Tree23) recycleNode(n TreeNodeIndex) {
     tree.g_treeNodes[n].next = -1
     tree.g_treeNodes[n].prev = -1
 
-    tree.g_treeNodesFreePositions.PushFront(n)
+    tree.g_treeNodesFreePositions.push(n)
 }
 
 // newLeaf creates a new leaf node with an element and correct pointers.
