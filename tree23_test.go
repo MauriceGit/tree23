@@ -148,59 +148,90 @@ func (e Element) ExtractValue() float64 {
 //
 //}
 
-func TestMemory(t *testing.T) {
+func TestSimple(t *testing.T) {
     tree := New()
 
-    maxN := 10
-
-    for i := 0; i < maxN; i++ {
-        tree.Insert(Element{i})
-    }
+    maxN := 4
 
     var seed int64 = time.Now().UTC().UnixNano()
     seed = seed
     fmt.Printf("TestMemory Seed: %v\n", 1528022455179425997)
     r := rand.New(rand.NewSource(1528022455179425997))
+    r = r
+
+    for i := 0; i < maxN; i++ {
+        tree.Insert(Element{i})
+    }
 
     tree.PrettyPrint()
-
-    fmt.Println("Start memory check:")
-
-    // Run insert and delete a lot!! Theoretically, we should be able
-    // to recycle all nodes that are removed/added and should not hit any limits!
-    for i := 0; i < 1000; i++ {
-
-        randInt := r.Intn(maxN)
-
-        _,err := tree.Find(Element{randInt})
-        if err != nil {
-            fmt.Printf("Cannot find element %d, err == %v\n", randInt, err)
-        }
-
-        tree.Delete(Element{randInt})
-        tree.Insert(Element{randInt})
-
-        _,err = tree.Find(Element{randInt})
-        if err != nil {
-            fmt.Printf("Cannot find element %d, err == %v\n", randInt, err)
-        }
-
-    }
 
     if !tree.Invariant() {
         t.Fail()
     }
-    for i := 0; i < maxN; i++ {
-        tree.Delete(Element{i})
-    }
 
-    dMin, dMax := tree.Depths()
+    tree.Delete(Element{1})
 
-    if dMin != dMax || dMin != 0 || !tree.Invariant() {
+    tree.PrettyPrint()
+
+    if !tree.Invariant() {
         t.Fail()
     }
 
 }
+
+//func TestMemory(t *testing.T) {
+//    tree := New()
+//
+//    maxN := 10
+//
+//    for i := 0; i < maxN; i++ {
+//        tree.Insert(Element{i})
+//    }
+//
+//    var seed int64 = time.Now().UTC().UnixNano()
+//    seed = seed
+//    fmt.Printf("TestMemory Seed: %v\n", 1528022455179425997)
+//    r := rand.New(rand.NewSource(1528022455179425997))
+//
+//    tree.PrettyPrint()
+//
+//    fmt.Println("Start memory check:")
+//
+//    // Run insert and delete a lot!! Theoretically, we should be able
+//    // to recycle all nodes that are removed/added and should not hit any limits!
+//    for i := 0; i < 1000; i++ {
+//
+//        randInt := r.Intn(maxN)
+//
+//        _,err := tree.Find(Element{randInt})
+//        if err != nil {
+//            fmt.Printf("Cannot find element %d, err == %v\n", randInt, err)
+//        }
+//
+//        tree.Delete(Element{randInt})
+//        tree.Insert(Element{randInt})
+//
+//        _,err = tree.Find(Element{randInt})
+//        if err != nil {
+//            fmt.Printf("Cannot find element %d, err == %v\n", randInt, err)
+//        }
+//
+//    }
+//
+//    if !tree.Invariant() {
+//        t.Fail()
+//    }
+//    for i := 0; i < maxN; i++ {
+//        tree.Delete(Element{i})
+//    }
+//
+//    dMin, dMax := tree.Depths()
+//
+//    if dMin != dMax || dMin != 0 || !tree.Invariant() {
+//        t.Fail()
+//    }
+//
+//}
 
 //func TestSmallestLargestLeaf(t *testing.T) {
 //    tree := New()

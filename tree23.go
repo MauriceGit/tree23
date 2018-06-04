@@ -809,6 +809,43 @@ func (tree *Tree23) leafListInvariant() bool {
     return tree.checkLinkedList(startNode, startNode)
 }
 
+// memoryCheckRec recursively runs through the whole tree and fills s with usage info.
+func (tree *Tree23) preallocatedMemoryCheckRec(s *[]bool, t TreeNodeIndex) {
+
+    // We don't need recursive ending, because there will be no children anyway.
+    (*s)[t] = true
+    for i := 0; i < tree.g_treeNodes[t].cCount; i++ {
+        tree.preallocatedMemoryCheckRec(s, tree.g_treeNodes[t].children[i].child)
+    }
+
+}
+
+// cachedMemoryCheck runs though memory cache and fills s with usage info
+func (tree *Tree23) cachedMemoryCheck(s *[]bool) {
+    for _,n := range(tree.g_treeNodesFreePositions) {
+        (*s)[n] = true
+    }
+}
+
+// memoryCheck goes through all preallocated memory and checks, wether it is actually in use or unrachable
+// Returns true, if everything is OK.
+func (tree *Tree23) memoryCheck() bool {
+
+    // Should be initialized as false.
+    s := make([]bool, tree.g_treeNodesFirstFreePos, tree.g_treeNodesFirstFreePos)
+
+    tree.preallocatedMemoryCheckRec(&s, tree.root)
+    tree.cachedMemoryCheck(&s)
+
+    allMemoryReachable := true
+    for _,n := range(s) {
+        allMemoryReachable = allMemoryReachable && n
+    }
+
+    return allMemoryReachable
+
+}
+
 // Invariant checks the tree on validity.
 // Returns true, if everything is OK with the given tree.
 // Two things are checked: If the minimum and maximum depth is equal for every node up to the root.
@@ -820,7 +857,7 @@ func (tree *Tree23) Invariant() bool {
 
     linkedListCorrect := tree.leafListInvariant()
 
-    return depthMin == depthMax && linkedListCorrect
+    return depthMin == depthMax && linkedListCorrect && tree.memoryCheck()
 }
 
 // pprint recursively pretty prints the tree.
@@ -857,7 +894,7 @@ func (tree *Tree23) pprint(t TreeNodeIndex, indentation int) {
         if indentation != 0 {
             fmt.Printf("|")
         }
-        fmt.Printf("--%.0f\n", c.maxChild)
+        fmt.Printf("--%d(%.0f)\n", t, c.maxChild)
         tree.pprint(c.child, indentation + 1)
     }
 }
@@ -865,6 +902,7 @@ func (tree *Tree23) pprint(t TreeNodeIndex, indentation int) {
 // Pprint pretty prints the tree so it can be visually validated or understood.
 // Runs in O(n log(n))
 func (tree *Tree23) PrettyPrint() {
+    //fmt.Printf("--%d(%.0f)\n", tree.root, tree.max(tree.root))
     tree.pprint(tree.root, 0)
     fmt.Printf("\n")
 }
