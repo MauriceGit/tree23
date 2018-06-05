@@ -184,8 +184,6 @@ func (tree *Tree23) newNode() TreeNodeIndex {
             appendSize = l*2
         }
         tree.g_treeNodes = append(tree.g_treeNodes, make([]treeNode, appendSize)...)
-
-        fmt.Println("Memory resizing!")
     }
 
     // Get node from cached memory.
@@ -195,8 +193,6 @@ func (tree *Tree23) newNode() TreeNodeIndex {
 
 // recycleNode adds the node into the stack for recycling. It will be reused when needed.
 func (tree *Tree23) recycleNode(n TreeNodeIndex) {
-
-    //fmt.Println("recycling:", n)
 
     tree.g_treeNodes[n].cCount = 0
     tree.g_treeNodes[n].elem = nil
@@ -624,12 +620,12 @@ func (tree *Tree23) Delete(elem TreeElement) {
 
     children := tree.deleteRec(tree.root, elem)
 
+    defer tree.recycleNode(tree.root)
+
     if len(*children) == 1 {
         tree.root = (*children)[0]
         return
     }
-
-    tree.recycleNode(tree.root)
 
     tree.root = tree.nodeFromChildrenList(children, 0, len(*children))
 }
