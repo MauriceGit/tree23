@@ -165,6 +165,15 @@ func (tree *Tree23) ChangeValue(t TreeNodeIndex, e TreeElement) {
         tree.g_treeNodes[t].elem = e
     }
 }
+// ChangeValueUnsafe works the same as ChangeValue but doesn't check the elements
+// on equality. This allows the user to edit elements that might make the new version
+// unequal to the current one.
+// The user needs to take care, that the key is NEVER changed during this operation!!!
+func (tree *Tree23) ChangeValueUnsafe(t TreeNodeIndex, e TreeElement) {
+    if tree.IsLeaf(t) {
+        tree.g_treeNodes[t].elem = e
+    }
+}
 
 // newNode returns a new node from cache or triggers a re-allocation for more memory!
 func (tree *Tree23) newNode() TreeNodeIndex {
@@ -871,9 +880,8 @@ func (tree *Tree23) pprint(t TreeNodeIndex, indentation int) {
             fmt.Printf("|  ")
         }
         fmt.Printf("|")
-        fmt.Printf("--(prev: %.2f. value: %d(%.10f). next: %.2f)\n",
+        fmt.Printf("--(prev: %.2f. value: %.2f. next: %.2f)\n",
                 tree.g_treeNodes[tree.g_treeNodes[t].prev].elem.ExtractValue(),
-                t,
                 tree.g_treeNodes[t].elem.ExtractValue(),
                 tree.g_treeNodes[tree.g_treeNodes[t].next].elem.ExtractValue())
         return
@@ -890,7 +898,7 @@ func (tree *Tree23) pprint(t TreeNodeIndex, indentation int) {
         if indentation != 0 {
             fmt.Printf("|")
         }
-        fmt.Printf("--%d(%.0f)\n", t, c.maxChild)
+        fmt.Printf("--%.0f\n", c.maxChild)
         tree.pprint(c.child, indentation + 1)
     }
 }
