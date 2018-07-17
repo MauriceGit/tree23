@@ -23,7 +23,7 @@
 // Package tree23 is an implementation for a balanced 2-3-tree.
 // It distinguishes itself from other implementations of 2-3-trees by having a few more
 // functions defined for finding elements close to a key (similar to possible insert positions in the tree)
-// for floating point keys and by having a native function to retreive the next or previous leaf element
+// for floating point keys and by having a native function to retrieve the next or previous leaf element
 // in the tree without knowing its key or position in the tree that work in O(1) for every leaf!
 // The last element links to the first and the first back to the last element.
 // The tree has its own memory manager to avoid frequent allocations for single nodes that are created or removed.
@@ -120,7 +120,7 @@ func (tree *Tree23) initializeTree(capacity int) {
 	tree.treeNodesFreePositions = make(stack, 0, 0)
 }
 
-// NewCapacity Works exactly like New without paramters, but pre-allocated memory for the
+// NewCapacity Works exactly like New without parameters, but pre-allocated memory for the
 // specified amount of maximum nodes beforehand. This may save some time for tree memory growing.
 // If in doubt, use the normal New or provide a smaller number. The tree will not run out of memory!
 func NewCapacity(expectedCapacity int) *Tree23 {

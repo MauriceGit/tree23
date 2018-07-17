@@ -25,7 +25,7 @@ func TestPreviousNext(t *testing.T) {
 		tree.Insert(Element{i})
 	}
 
-	l, err := tree.Find(Element{7})
+	l, _ := tree.Find(Element{7})
 
 	n, err := tree.Next(l)
 	if err != nil || tree.GetValue(n).ExtractValue() <= 7 {
