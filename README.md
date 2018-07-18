@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/mauricegit/tree23)](https://goreportcard.com/report/github.com/mauricegit/tree23)
+
 # 2,3-Tree
 
 A Go library that implements a completely balanced 2,3-Tree that allows generic data as values in the tree.
